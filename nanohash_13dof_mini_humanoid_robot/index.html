@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1f3d">
+<title>NanoHash Controller</title>
+<style>
+:root{
+--bg:#eef2fa;--surface:#fff;--ink:#1a1f3d;--muted:#667091;--line:#dde4f2;--soft:#f4f7fd;
+--coral:#ff5a6e;--teal:#0fb5a4;--indigo:#4a5cf0;--amber:#f5a524;--violet:#8b5cf6;
+--ok:#22c55e;--bad:#ef4444;--busy:#f5a524;
+--tint-l:95%;--tint-t:28%;--tint-b:84%;
+--shadow:0 1px 0 rgba(26,31,61,.04),0 10px 26px -14px rgba(26,31,61,.35);
+--font:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",Nunito,"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+@media(prefers-color-scheme:dark){
+:root{--bg:#0f1226;--surface:#181c38;--ink:#eef0ff;--muted:#9aa3c7;--line:#2a2f56;--soft:#1f2445;
+--tint-l:22%;--tint-t:86%;--tint-b:34%;--shadow:0 10px 26px -14px rgba(0,0,0,.7)}
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45}
+button,input{font-family:inherit}
+
+/* ---------- header ---------- */
+.top{background:#1a1f3d;color:#fff;padding:16px 20px 18px;position:relative}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;
+background:linear-gradient(90deg,var(--coral) 0 25%,var(--amber) 25% 50%,var(--teal) 50% 75%,var(--indigo) 75%)}
+.top-in{max-width:1180px;margin:auto;display:flex;align-items:center;gap:14px}
+.logo{width:64px;height:50px;flex:none}
+.logo .eye{fill:#5ef2e0;transform-box:fill-box;transform-origin:center;animation:blink 6s infinite}
+.logo .eye.r{animation-delay:.04s}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+@media(prefers-reduced-motion:reduce){.logo .eye{animation:none}}
+.top h1{margin:0;font-size:24px;letter-spacing:.2px;font-weight:800}
+.top p{margin:2px 0 0;color:#aab3dd;font-size:13px}
+
+/* ---------- status bar ---------- */
+.bar{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line);
+box-shadow:0 6px 16px -12px rgba(26,31,61,.4)}
+.bar-in{max-width:1180px;margin:auto;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.state{display:flex;align-items:center;gap:10px;flex:1 1 220px;min-width:0;font-weight:700}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(34,197,94,.2);flex:none}
+#statusbar.busy .dot{background:var(--busy);box-shadow:0 0 0 4px rgba(245,165,36,.25)}
+#statusbar.err .dot{background:var(--bad);box-shadow:0 0 0 4px rgba(239,68,68,.22)}
+#status{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.time{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:700;font-size:13px}
+.time input{width:84px}
+
+input[type=number]{padding:8px 10px;border:2px solid var(--line);border-radius:10px;background:var(--soft);color:var(--ink);
+font-size:15px;font-weight:700;text-align:center;outline:none;font-variant-numeric:tabular-nums}
+input[type=number]:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(74,92,240,.18)}
+
+/* ---------- tabs ---------- */
+.tabs{max-width:1180px;margin:16px auto 0;padding:0 20px;display:flex}
+.seg{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.tab{border:0;background:transparent;color:var(--muted);padding:9px 20px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--ink);color:#fff}
+@media(prefers-color-scheme:dark){.tab.on{background:var(--indigo)}}
+
+main{max-width:1180px;margin:auto;padding:16px 20px 40px}
+
+/* ---------- cards ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.chip{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:19px;background:var(--c);flex:none}
+.card-h h2{margin:0;font-size:18px;font-weight:800}
+.card-h small{display:block;color:var(--muted);font-weight:600;font-size:13px}
+.card-h .grow{flex:1;min-width:0}
+
+/* ---------- buttons ---------- */
+.btn{border:0;border-radius:12px;padding:11px 18px;font-size:15px;font-weight:800;cursor:pointer;color:#fff;background:var(--c,var(--indigo));
+box-shadow:0 3px 0 rgba(0,0,0,.22);transition:transform .08s,box-shadow .08s,filter .15s}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.22)}
+.btn:focus-visible,.tab:focus-visible,.tile:focus-visible,.mv:focus-visible,.pad:focus-visible{outline:3px solid var(--indigo);outline-offset:2px}
+.btn.soft{background:var(--soft);color:var(--ink);box-shadow:0 3px 0 var(--line);border:1px solid var(--line)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.3)}
+
+/* ---------- faces ---------- */
+.face-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.tile{border:1px solid hsl(var(--h) 70% var(--tint-b));background:hsl(var(--h) 85% var(--tint-l));color:hsl(var(--h) 55% var(--tint-t));
+border-radius:16px;padding:10px 4px 9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;
+font-size:13px;font-weight:800;transition:transform .08s,background .15s}
+.tile .emo{font-size:28px;line-height:1.1}
+.tile:hover{transform:translateY(-2px)}
+.tile:active{transform:scale(.96)}
+.tile.active{background:hsl(var(--h) 78% 52%);border-color:hsl(var(--h) 78% 42%);color:#fff;box-shadow:0 4px 0 hsl(var(--h) 78% 38%)}
+.touch{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:12px 14px;border-radius:14px;
+background:hsl(40 95% 94%);border:1px solid hsl(40 85% 80%);color:#5b3b00}
+@media(prefers-color-scheme:dark){.touch{background:hsl(40 40% 18%);border-color:hsl(40 40% 30%);color:#ffe3a6}}
+.touch b{display:block;font-size:15px}
+.touch span.sub{font-size:13px;opacity:.8;font-weight:600}
+
+/* ---------- switch ---------- */
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-weight:700;color:var(--muted)}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .track{width:48px;height:28px;border-radius:14px;background:#b9c3dc;position:relative;transition:.15s;flex:none}
+.switch .track::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.switch input:checked+.track{background:var(--amber)}
+.switch input:checked+.track::after{left:23px}
+.switch input:focus-visible+.track{box-shadow:0 0 0 3px rgba(74,92,240,.4)}
+.touch .switch input:checked+.track{background:#d98200}
+
+/* ---------- movements ---------- */
+.repeat{display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:700;font-size:13px}
+.repeat input{width:64px}
+.move-wrap{display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:22px;align-items:start}
+@media(max-width:820px){.move-wrap{grid-template-columns:1fr}}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,76px);gap:10px;margin-bottom:12px}
+.pad{border:0;border-radius:16px;background:var(--teal);color:#fff;cursor:pointer;font-weight:800;font-size:14px;
+display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 4px 0 #0a8478;
+transition:transform .08s,box-shadow .08s,filter .15s}
+.pad .ar{font-size:22px;line-height:1}
+.pad:hover{filter:brightness(1.07)}
+.pad:active{transform:translateY(3px);box-shadow:0 1px 0 #0a8478}
+.dpad .up{grid-column:2;grid-row:1}
+.dpad .left{grid-column:1;grid-row:2}
+.dpad .rest{grid-column:2;grid-row:2;background:var(--soft);color:var(--ink);box-shadow:0 4px 0 var(--line);border:1px solid var(--line)}
+.dpad .right{grid-column:3;grid-row:2}
+.dpad .down{grid-column:2;grid-row:3}
+.side-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.side-row .pad{flex-direction:row;gap:8px;height:52px;background:#12a79b;box-shadow:0 4px 0 #0a7f75}
+.pad.running,.mv.running{outline:3px solid var(--amber);outline-offset:2px}
+.group{margin-bottom:14px}
+.group h3{margin:0 0 8px;font-size:14px;font-weight:800;color:hsl(var(--h) 55% var(--tint-t))}
+.group-grid{display:flex;flex-wrap:wrap;gap:8px}
+.mv{border:1px solid hsl(var(--h) 70% var(--tint-b));background:hsl(var(--h) 85% var(--tint-l));color:hsl(var(--h) 55% var(--tint-t));
+border-radius:999px;padding:8px 14px;font-size:14px;font-weight:800;cursor:pointer;transition:transform .08s,background .15s}
+.mv:hover{background:hsl(var(--h) 80% calc(var(--tint-l) - 5%))}
+.mv:active{transform:scale(.96)}
+.mv.running{background:hsl(var(--h) 78% 50%);color:#fff}
+
+/* ---------- servo studio ---------- */
+.toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.toolbar h3{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:800}
+.servo-container,.initial-container{display:grid;grid-template-columns:repeat(16,minmax(64px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}
+.servo{min-width:64px;text-align:center;padding:10px 4px 10px;border-radius:14px;background:var(--soft);border:1px solid var(--line);
+border-top:5px solid var(--c)}
+.servo-title{font-weight:800;font-size:12px;white-space:nowrap}
+.channel-title{font-size:11px;color:var(--muted);margin-bottom:2px;font-weight:700}
+.joint{display:inline-block;font-size:11px;font-weight:800;color:#fff;background:var(--c);border-radius:999px;padding:1px 8px;margin-bottom:4px}
+.slider-box{height:260px;display:flex;justify-content:center;align-items:center}
+.slider{appearance:slider-vertical;-webkit-appearance:slider-vertical;width:35px;height:240px;writing-mode:bt-lr;accent-color:var(--c);cursor:pointer}
+.angle{font-size:15px;margin-top:4px;font-weight:800;font-variant-numeric:tabular-nums}
+.angle-input{width:56px!important;padding:5px!important;margin-top:5px;font-size:13px!important;border-radius:8px!important}
+.initial-item{min-width:64px;text-align:center;padding:8px 4px;border-radius:12px;background:var(--soft);border:1px solid var(--line);border-top:4px solid var(--c)}
+.initial-item label{display:block;font-size:12px;font-weight:800}
+.initial-channel{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:700}
+.initial-input{width:56px!important;padding:5px!important;font-size:13px!important;border-radius:8px!important}
+.initial-button{margin-top:14px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 12px;color:var(--muted);font-size:13px;font-weight:700}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-right:6px}
+.steps{display:grid;gap:8px}
+.step{background:var(--soft);padding:10px 12px;border-radius:12px;border:1px solid var(--line);border-left:5px solid var(--indigo);
+font-size:13px;word-break:break-word;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-weight:600}
+
+/* ---------- log ---------- */
+.log{height:170px;overflow-y:auto;background:#10142e;color:#cfe4ff;padding:12px;border-radius:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;margin-top:14px}
+
+@media(max-width:700px){
+.top{padding:12px 14px 14px}.top h1{font-size:21px}
+.bar-in,.tabs,main{padding-left:12px;padding-right:12px}
+.card{padding:14px;border-radius:18px}
+.servo-container,.initial-container{grid-template-columns:repeat(16,68px)}
+.dpad{grid-template-rows:repeat(3,68px)}
+.tab{padding:9px 16px}
+}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="top-in">
+<svg class="logo" viewBox="0 0 64 50" aria-hidden="true">
+<rect x="1.5" y="1.5" width="61" height="47" rx="13" fill="#0b0e24" stroke="#4a5cf0" stroke-width="3"/>
+<rect class="eye" x="14" y="13" width="12" height="20" rx="5"/>
+<rect class="eye r" x="38" y="13" width="12" height="20" rx="5"/>
+<path d="M24 40 Q32 45 40 40" fill="none" stroke="#ff5a6e" stroke-width="3" stroke-linecap="round"/>
+</svg>
+<div><h1>NanoHash</h1><p>Robot controller: faces, moves and servos</p></div>
+</div></header>
+
+<div class="bar" id="statusbar"><div class="bar-in">
+<div class="state"><span class="dot"></span><span id="status">Ready</span></div>
+<label class="time">Step time
+<input id="moveTime" type="number" value="1000" min="0" max="60000" inputmode="numeric">ms</label>
+</div></div>
+
+<nav class="tabs"><div class="seg">
+<button id="tabbtn-play" class="tab on" onclick="showTab('play')">Play</button>
+<button id="tabbtn-servos" class="tab" onclick="showTab('servos')">Servo studio</button>
+</div></nav>
+
+<main>
+
+<!-- ================= PLAY ================= -->
+<section id="tab-play">
+
+<div class="card">
+<div class="card-h"><div class="chip" style="--c:#ffd9de">😊</div>
+<div class="grow"><h2>Facial expressions</h2><small>Tap a face to show it on the robot's screen</small></div></div>
+<div id="faceContainer" class="face-grid"></div>
+<div class="touch">
+<div><b>Touch reactions</b><span class="sub">Robot answers a touch with a random face and move</span></div>
+<label class="switch"><input id="touchToggle" type="checkbox" checked onchange="toggleTouch()"><span class="track"></span></label>
+</div>
+</div>
+
+<div class="card">
+<div class="card-h"><div class="chip" style="--c:#c7f3ee">🚶</div>
+<div class="grow"><h2>Movements</h2><small>Each step takes the step time set at the top</small></div>
+<label class="repeat">Repeat <input id="moveCount" type="number" value="1" min="1" max="20" inputmode="numeric"></label></div>
+<div class="move-wrap">
+<div>
+<div class="dpad" id="dpad"></div>
+<div class="side-row" id="sideRow"></div>
+</div>
+<div id="moveContainer"></div>
+</div>
+</div>
+
+</section>
+
+<!-- ================= SERVO STUDIO ================= -->
+<section id="tab-servos" hidden>
+
+<div class="card">
+<div class="card-h"><div class="chip" style="--c:#d9ddff">🎛️</div>
+<div class="grow"><h2>Poses and sequences</h2><small>Move every servo at once, or record poses and play them back</small></div></div>
+<div class="toolbar">
+<div><h3>Pose</h3><div class="btn-row">
+<button class="btn" style="--c:#4a5cf0" onclick="centerAll()">Center all</button>
+<button class="btn soft" onclick="resetAll()">Reset all to 0°</button>
+</div></div>
+<div><h3>Sequence</h3><div class="btn-row">
+<button class="btn" style="--c:#0fb5a4" onclick="recordStep()">Record step</button>
+<button class="btn" style="--c:#f5a524;color:#3a2600" onclick="executeSteps()">Play steps</button>
+<button class="btn soft" onclick="clearSteps()">Clear steps</button>
+</div></div>
+</div>
+</div>
+
+<div class="card">
+<div class="card-h"><div class="chip" style="--c:#e6dcff">🎚️</div>
+<div class="grow"><h2>Servo sliders</h2><small>PCA9685 channels CH0 to CH15</small></div></div>
+<div class="legend">
+<span style="--c:#4a5cf0"><i></i>Legs</span><span style="--c:#0d9488"><i></i>Arms</span>
+<span style="--c:#8b5cf6"><i></i>Head</span><span style="--c:#6f7a99"><i></i>Spare</span></div>
+<div class="servo-container" id="servoContainer"></div>
+</div>
+
+<div class="card">
+<div class="card-h"><div class="chip" style="--c:#d9f3dc">🏠</div>
+<div class="grow"><h2>Initial position</h2><small>The pose the robot starts in and returns to</small></div></div>
+<div class="initial-container" id="initialContainer"></div>
+<div class="initial-button"><button class="btn" style="--c:#4a5cf0" onclick="setInitialPosition()">Go to initial position</button></div>
+</div>
+
+<div class="card">
+<div class="card-h"><div class="chip" style="--c:#ffe9bd">📋</div>
+<div class="grow"><h2>Recorded steps</h2><small>Played in order with "Play steps"</small></div></div>
+<div id="steps" class="steps"><span class="empty">No steps yet. Set the sliders, then tap Record step.</span></div>
+</div>
+
+</section>
+
+<!-- ================= LOG ================= -->
+<div class="card">
+<div class="card-h"><div class="chip" style="--c:#dfe5f3">🧾</div>
+<div class="grow"><h2>Web log</h2><small>Every command sent to the robot</small></div>
+<label class="switch"><input id="logToggle" type="checkbox" onchange="toggleLog()"><span class="track" style="--x:0"></span><span>Show</span></label></div>
+<div id="log" class="log" style="display:none"></div>
+</div>
+
+</main>
+
+<script>
+const SERVO_COUNT=16;
+let angles=[];
+let steps=[];
+let sending=false;
+let moving=false;
+
+// Add new movements here (key = method name in hashmoves.py).
+// The list is also refreshed from the robot ({"cmd":"movements"}) when available.
+const MOVEMENTS=[
+["move_forward","Move Forward"],["move_backward","Move Backward"],
+["turn_left","Turn Left"],["turn_right","Turn Right"],
+["side_move_left","Side Move Left"],["side_move_right","Side Move Right"],
+["say_hi","Say Hi"],["hands_up","Hands Up"],["hands_down","Hands Down"],
+["t_pose","T Pose"],["hands_forward","Hands Forward"],
+["wave_left","Wave Left"],["wave_both","Wave Both"],
+["hand_straight_shake","Hand Shake"],["arms_flap","Arms Flap"],["cheer","Cheer"],
+["look_left","Look Left"],["look_right","Look Right"],["head_shake","Head Shake"],["scan","Scan"],
+["leg_head_shake","Leg Head Shake"],["march","March"],["leg_shake","Leg Shake"],
+["right_hand_balance","Right Hand Balance"],["left_hand_balance","Left Hand Balance"],
+["side_shake","Side Shake"],["right_slide_wave","Right Slide Wave"],["left_slide_wave","Left Slide Wave"],
+["twist","Twist"],["flying_move","Flying Move"],["jump","Jump"],["dance","Dance"]
+];
+
+// Facial expressions (names match nanoface.py). Refreshed from the robot when available.
+let EXPRESSIONS=["Normal","Blinking","Happy","Laughing","Sad","Angry","Confused","Surprised","Sleepy","Shock","Wink","Excited","Love","Thinking","Confident","Dizzy","Bored","Embarrassed","Scared","Proud","Curious","Talking"];
+let currentFace="";
+
+// Look of each face tile: [emoji, hue]. Hue groups the mood:
+// blue = calm, orange = cheerful, pink = affectionate, red = alarmed, violet = drowsy.
+const FACE_STYLE={
+Normal:["🙂",225],Blinking:["😑",225],Talking:["🗣️",225],Thinking:["🤔",225],Curious:["🧐",225],Confused:["😕",225],
+Happy:["😊",38],Laughing:["😂",38],Excited:["🤩",38],Wink:["😉",38],Proud:["😌",38],Confident:["😎",38],
+Love:["😍",335],Embarrassed:["😳",335],
+Sad:["😢",205],Angry:["😠",2],Scared:["😨",2],Shock:["😱",2],Surprised:["😮",22],
+Sleepy:["😴",268],Bored:["😒",268],Dizzy:["😵‍💫",268]
+};
+
+// Direction pad: [movement key, label, css class, arrow]
+const DPAD=[
+["move_forward","Forward","up","&#9650;"],
+["turn_left","Left","left","&#9664;"],
+["hands_down","Rest","rest","&#9679;"],
+["turn_right","Right","right","&#9654;"],
+["move_backward","Backward","down","&#9660;"]
+];
+const SIDE_STEPS=[["side_move_left","&#9664; Side left"],["side_move_right","Side right &#9654;"]];
+const SPECIAL_KEYS=DPAD.map(function(d){return d[0];}).concat(SIDE_STEPS.map(function(s){return s[0];}));
+
+// Groups for the "more movements" list. [title, hue, keys]
+const MOVE_GROUPS=[
+["Arms",170,["hands_up","t_pose","hands_forward","say_hi","wave_left","wave_both","hand_straight_shake","arms_flap","cheer"]],
+["Head",268,["look_left","look_right","head_shake","scan","leg_head_shake"]],
+["Legs and balance",228,["march","leg_shake","right_hand_balance","left_hand_balance"]],
+["Dance and fun",38,["side_shake","right_slide_wave","left_slide_wave","twist","flying_move","jump","dance"]]
+];
+
+// Servo order on the PCA9685 (matches hashmoves.py). [name, colour]
+const JOINTS=["RL1","RL2","RL3","LL1","LL2","LL3","RH1","RH2","RH3","LH1","LH2","LH3","HEAD","DMY1","DMY2","DMY3"];
+function jointColor(i){
+if(i<6)return "#4a5cf0";     // legs
+if(i<12)return "#0d9488";    // arms
+if(i===12)return "#8b5cf6";  // head
+return "#6f7a99";            // spare
+}
+
+const INITIAL_POSITION=[
+90,90,90,90,
+90,90,90,0,
+0,90,180,180,
+90,0,0,0
+];
+
+function initialize(){
+angles=[];
+for(let channel=0;channel<SERVO_COUNT;channel++)angles.push(90);
+createSliders();
+createInitialInputs();
+updateSteps();
+addLog("Controller ready");
+addLog("CH0-CH15 mapping active");
+createMoveButtons();
+createFaceButtons();
+loadMovements();
+loadExpressions();
+try{const t=localStorage.getItem("nh_tab");if(t==="servos"||t==="play")showTab(t);}catch(e){}
+}
+
+function showTab(name){
+["play","servos"].forEach(function(n){
+document.getElementById("tab-"+n).hidden=(n!==name);
+document.getElementById("tabbtn-"+n).classList.toggle("on",n===name);
+});
+try{localStorage.setItem("nh_tab",name);}catch(e){}
+}
+
+function createSliders(){
+const container=document.getElementById("servoContainer");
+container.innerHTML="";
+for(let channel=0;channel<SERVO_COUNT;channel++){
+const servo=document.createElement("div");
+servo.className="servo";
+servo.style.setProperty("--c",jointColor(channel));
+servo.innerHTML=`
+<div class="servo-title">Servo ${channel+1}</div>
+<div class="channel-title">CH${channel}</div>
+<div class="joint">${JOINTS[channel]}</div>
+<div class="slider-box">
+<input id="servo${channel}" class="slider" type="range" min="0" max="180" value="${angles[channel]}" oninput="sliderChanged(${channel})">
+</div>
+<div id="angle${channel}" class="angle">${angles[channel]}°</div>
+<input id="angleInput${channel}" class="angle-input" type="number" min="0" max="180" step="1" value="${angles[channel]}" onkeydown="angleKeyDown(event,${channel})" onblur="angleInputChanged(${channel})">
+`;
+container.appendChild(servo);
+}
+}
+
+function createInitialInputs(){
+const container=document.getElementById("initialContainer");
+container.innerHTML="";
+for(let channel=0;channel<SERVO_COUNT;channel++){
+const item=document.createElement("div");
+item.className="initial-item";
+item.style.setProperty("--c",jointColor(channel));
+item.innerHTML=`
+<label>${JOINTS[channel]}</label>
+<div class="initial-channel">CH${channel}</div>
+<input id="initial${channel}" class="initial-input" type="number" min="0" max="180" step="1" value="${INITIAL_POSITION[channel]}">
+`;
+container.appendChild(item);
+}
+}
+
+function sliderChanged(channel){
+const angle=parseInt(document.getElementById("servo"+channel).value);
+angles[channel]=angle;
+document.getElementById("angle"+channel).innerText=angle+"°";
+document.getElementById("angleInput"+channel).value=angle;
+sendServo(channel,angle);
+}
+
+function angleKeyDown(event,channel){
+if(event.key==="Enter"){
+event.preventDefault();
+angleInputChanged(channel);
+event.target.blur();
+}
+}
+
+function angleInputChanged(channel){
+const input=document.getElementById("angleInput"+channel);
+let angle=parseInt(input.value);
+if(isNaN(angle)){
+input.value=angles[channel];
+return;
+}
+angle=Math.max(0,Math.min(180,angle));
+input.value=angle;
+angles[channel]=angle;
+document.getElementById("servo"+channel).value=angle;
+document.getElementById("angle"+channel).innerText=angle+"°";
+sendServo(channel,angle);
+}
+
+async function sendServo(channel,angle){
+const time=parseInt(document.getElementById("moveTime").value)||0;
+const command={cmd:"servo",channel:channel,angle:angle,time:time};
+addLog("CH"+channel+" SEND: "+JSON.stringify(command));
+try{
+const response=await fetch("/api",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(command)
+});
+const result=await response.json();
+addLog("CH"+channel+" RESPONSE: "+JSON.stringify(result));
+setStatus(result.status==="ok"?"CH"+channel+" moved to "+angle+"°":result.message);
+}catch(error){
+addLog("CH"+channel+" ERROR: "+error);
+setStatus("Connection error");
+}
+}
+
+function getInitialPosition(){
+const position=[];
+for(let channel=0;channel<SERVO_COUNT;channel++){
+const input=document.getElementById("initial"+channel);
+let angle=parseInt(input.value);
+if(isNaN(angle))angle=90;
+angle=Math.max(0,Math.min(180,angle));
+input.value=angle;
+position.push(angle);
+}
+return position;
+}
+
+function setInitialPosition(){
+const initialPosition=getInitialPosition();
+angles=initialPosition.slice();
+for(let channel=0;channel<SERVO_COUNT;channel++){
+document.getElementById("servo"+channel).value=initialPosition[channel];
+document.getElementById("angle"+channel).innerText=initialPosition[channel]+"°";
+document.getElementById("angleInput"+channel).value=initialPosition[channel];
+}
+sendAll(initialPosition,"Initial Position");
+}
+
+function centerAll(){
+for(let channel=0;channel<SERVO_COUNT;channel++){
+angles[channel]=90;
+document.getElementById("servo"+channel).value=90;
+document.getElementById("angle"+channel).innerText="90°";
+document.getElementById("angleInput"+channel).value=90;
+}
+sendAll(angles,"Center All");
+}
+
+function resetAll(){
+for(let channel=0;channel<SERVO_COUNT;channel++){
+angles[channel]=0;
+document.getElementById("servo"+channel).value=0;
+document.getElementById("angle"+channel).innerText="0°";
+document.getElementById("angleInput"+channel).value=0;
+}
+sendAll(angles,"Reset All");
+}
+
+async function sendAll(targetAngles,description){
+const time=parseInt(document.getElementById("moveTime").value)||0;
+const command={cmd:"step",angles:targetAngles.slice(),time:time};
+addLog(description+": "+JSON.stringify(command));
+setStatus("Moving all servos...");
+try{
+const response=await fetch("/api",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(command)
+});
+const result=await response.json();
+addLog("RESPONSE: "+JSON.stringify(result));
+setStatus(result.status==="ok"?"Movement complete":result.message);
+}catch(error){
+addLog("ERROR: "+error);
+setStatus("Connection error");
+}
+}
+
+function recordStep(){
+const time=parseInt(document.getElementById("moveTime").value)||0;
+const step={angles:angles.slice(),time:time};
+steps.push(step);
+updateSteps();
+addLog("Recorded step "+steps.length);
+setStatus("Step "+steps.length+" recorded");
+}
+
+function updateSteps(){
+const container=document.getElementById("steps");
+if(steps.length===0){
+container.innerHTML='<span class="empty">No steps yet. Set the sliders, then tap Record step.</span>';
+return;
+}
+container.innerHTML="";
+steps.forEach(function(step,index){
+const div=document.createElement("div");
+div.className="step";
+div.innerText="Step "+(index+1)+" | "+step.time+" ms | CH0-CH15: "+JSON.stringify(step.angles);
+container.appendChild(div);
+});
+}
+
+function clearSteps(){
+steps=[];
+updateSteps();
+addLog("All recorded steps cleared");
+setStatus("Steps cleared");
+}
+
+async function executeSteps(){
+if(sending)return;
+if(steps.length===0){
+setStatus("No steps to execute");
+return;
+}
+sending=true;
+addLog("Executing "+steps.length+" steps...");
+for(let i=0;i<steps.length;i++){
+const step=steps[i];
+addLog("Executing step "+(i+1));
+setStatus("Executing step "+(i+1)+" / "+steps.length);
+const success=await sendStep(step.angles,step.time);
+if(!success){
+addLog("Execution stopped");
+break;
+}
+}
+sending=false;
+setStatus("All steps complete");
+addLog("Step execution complete");
+}
+
+async function sendStep(targetAngles,time){
+const command={cmd:"step",angles:targetAngles.slice(),time:time};
+addLog("SEND STEP: "+JSON.stringify(command));
+try{
+const response=await fetch("/api",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(command)
+});
+const result=await response.json();
+addLog("STEP RESPONSE: "+JSON.stringify(result));
+if(result.status!=="ok"){
+setStatus(result.message);
+return false;
+}
+for(let channel=0;channel<SERVO_COUNT;channel++){
+angles[channel]=targetAngles[channel];
+document.getElementById("servo"+channel).value=targetAngles[channel];
+document.getElementById("angle"+channel).innerText=targetAngles[channel]+"°";
+document.getElementById("angleInput"+channel).value=targetAngles[channel];
+}
+return true;
+}catch(error){
+addLog("STEP ERROR: "+error);
+setStatus("Connection error");
+return false;
+}
+}
+
+function toggleLog(){
+document.getElementById("log").style.display=document.getElementById("logToggle").checked?"block":"none";
+}
+
+function prettyName(key){
+return key.split("_").map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join(" ");
+}
+
+function makeMoveButton(key,label,className){
+const b=document.createElement("button");
+b.id="move_"+key;
+b.innerHTML=label;
+if(className)b.className=className;
+b.onclick=function(){runMovement(key);};
+return b;
+}
+
+function createMoveButtons(){
+// direction pad
+const dpad=document.getElementById("dpad");
+dpad.innerHTML="";
+DPAD.forEach(function(d){
+dpad.appendChild(makeMoveButton(d[0],'<span class="ar">'+d[3]+'</span><span>'+d[1]+'</span>',"pad "+d[2]));
+});
+// side steps
+const side=document.getElementById("sideRow");
+side.innerHTML="";
+SIDE_STEPS.forEach(function(s){side.appendChild(makeMoveButton(s[0],s[1],"pad"));});
+// everything else, grouped
+const container=document.getElementById("moveContainer");
+container.innerHTML="";
+const placed={};
+function addGroup(title,hue,items){
+if(items.length===0)return;
+const g=document.createElement("div");
+g.className="group";
+g.style.setProperty("--h",hue);
+const h=document.createElement("h3");
+h.textContent=title;
+g.appendChild(h);
+const grid=document.createElement("div");
+grid.className="group-grid";
+items.forEach(function(m){grid.appendChild(makeMoveButton(m[0],m[1],"mv"));});
+g.appendChild(grid);
+container.appendChild(g);
+}
+MOVE_GROUPS.forEach(function(grp){
+const items=MOVEMENTS.filter(function(m){return grp[2].indexOf(m[0])!==-1&&SPECIAL_KEYS.indexOf(m[0])===-1;});
+items.forEach(function(m){placed[m[0]]=true;});
+addGroup(grp[0],grp[1],items);
+});
+// movements added later in hashmoves.py land here automatically
+const others=MOVEMENTS.filter(function(m){return !placed[m[0]]&&SPECIAL_KEYS.indexOf(m[0])===-1;});
+addGroup("More",300,others);
+}
+
+// ---------- facial expressions ----------
+function createFaceButtons(){
+const container=document.getElementById("faceContainer");
+container.innerHTML="";
+EXPRESSIONS.forEach(function(name){
+const style=FACE_STYLE[name]||["🙂",225];
+const b=document.createElement("button");
+b.id="face_"+name;
+b.className="tile"+(name===currentFace?" active":"");
+b.style.setProperty("--h",style[1]);
+b.innerHTML='<span class="emo">'+style[0]+'</span><span>'+name+'</span>';
+b.onclick=function(){sendFace(name);};
+container.appendChild(b);
+});
+}
+
+function markFace(name){
+currentFace=name;
+document.querySelectorAll("#faceContainer button").forEach(function(b){
+b.classList.toggle("active",b.id==="face_"+name);
+});
+}
+
+async function sendFace(name){
+const command={cmd:"face",expression:name.toLowerCase()};
+addLog("FACE SEND: "+JSON.stringify(command));
+try{
+const response=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(command)});
+const result=await response.json();
+addLog("FACE RESPONSE: "+JSON.stringify(result));
+if(result.status==="ok"){
+markFace(result.expression);
+setStatus("Face: "+result.expression);
+}else{
+setStatus(result.message);
+}
+}catch(error){
+addLog("FACE ERROR: "+error);
+setStatus("Connection error");
+}
+}
+
+async function loadExpressions(){
+try{
+const response=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd:"expressions"})});
+const result=await response.json();
+if(result.status!=="ok")return;
+if(Array.isArray(result.expressions)&&result.expressions.length>0){
+EXPRESSIONS=result.expressions;
+}
+currentFace=result.current||"";
+createFaceButtons();
+document.getElementById("touchToggle").checked=!!result.touch;
+addLog("Loaded "+EXPRESSIONS.length+" expressions from robot");
+}catch(error){
+addLog("Expression list not loaded, using built-in list");
+}
+}
+
+async function toggleTouch(){
+const enabled=document.getElementById("touchToggle").checked;
+try{
+const response=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd:"touch",enabled:enabled})});
+const result=await response.json();
+if(result.status==="ok"){
+document.getElementById("touchToggle").checked=result.enabled;
+setStatus("Touch interaction "+(result.enabled?"ON":"OFF"));
+}
+}catch(error){
+addLog("TOUCH ERROR: "+error);
+setStatus("Connection error");
+}
+}
+
+async function loadMovements(){
+try{
+const response=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd:"movements"})});
+const result=await response.json();
+if(result.status!=="ok"||!Array.isArray(result.movements))return;
+const labels={};
+MOVEMENTS.forEach(function(m){labels[m[0]]=m[1];});
+const list=result.movements.map(function(k){return [k,labels[k]||prettyName(k)];});
+MOVEMENTS.length=0;
+list.forEach(function(m){MOVEMENTS.push(m);});
+createMoveButtons();
+addLog("Loaded "+list.length+" movements from robot");
+}catch(error){
+addLog("Movement list not loaded, using built-in list");
+}
+}
+
+function setMoveButtons(disabled){
+document.querySelectorAll("#moveContainer button,#dpad button,#sideRow button").forEach(function(b){b.disabled=disabled;});
+}
+
+async function runMovement(name){
+if(moving||sending)return;
+let time=parseInt(document.getElementById("moveTime").value);
+if(isNaN(time)||time<0)time=1000;
+let count=parseInt(document.getElementById("moveCount").value);
+if(isNaN(count)||count<1)count=1;
+const command={cmd:"move",movement:name,time:time,count:count};
+moving=true;
+setMoveButtons(true);
+const btn=document.getElementById("move_"+name);
+if(btn)btn.classList.add("running");
+setStatus("Running "+name+"...");
+addLog("MOVE: "+JSON.stringify(command));
+try{
+const response=await fetch("/api",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(command)});
+const result=await response.json();
+addLog("MOVE RESPONSE: "+JSON.stringify(result));
+setStatus(result.status==="ok"?name+" complete":result.message);
+if(result.status==="ok"){
+// use the real final servo positions reported by the robot
+const finalAngles=Array.isArray(result.angles)&&result.angles.length===SERVO_COUNT?result.angles:INITIAL_POSITION;
+for(let channel=0;channel<SERVO_COUNT;channel++){
+angles[channel]=finalAngles[channel];
+document.getElementById("servo"+channel).value=finalAngles[channel];
+document.getElementById("angle"+channel).innerText=finalAngles[channel]+"°";
+document.getElementById("angleInput"+channel).value=finalAngles[channel];
+}
+}
+}catch(error){
+addLog("MOVE ERROR: "+error);
+setStatus("Connection error");
+}
+moving=false;
+setMoveButtons(false);
+if(btn)btn.classList.remove("running");
+}
+
+function setStatus(message){
+document.getElementById("status").innerText=message;
+// colour the status dot: red = problem, amber = working, green = fine
+const bar=document.getElementById("statusbar");
+const text=String(message||"");
+bar.classList.toggle("err",/error|invalid|unknown|failed|must|required|not |^No /i.test(text));
+bar.classList.toggle("busy",/^(Running|Moving|Executing)/.test(text));
+}
+
+function addLog(message){
+const log=document.getElementById("log");
+const currentTime=new Date().toLocaleTimeString();
+log.innerHTML+="["+currentTime+"] "+message+"<br>";
+log.scrollTop=log.scrollHeight;
+}
+
+initialize();
+</script>
+</body>
+</html>
